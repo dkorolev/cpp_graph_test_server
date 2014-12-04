@@ -16,7 +16,7 @@ typedef std::vector<std::pair<std::string, std::string>> HTTPHeadersType;
 
 class HTTPHeaderParser {
  public:
-  HTTPHeaderParser(const int intial_buffer_size = 1600, const int buffer_growth_k = 1.95)
+  HTTPHeaderParser(const int intial_buffer_size = 1600, const double buffer_growth_k = 1.95)
       : buffer_(intial_buffer_size), buffer_growth_k_(buffer_growth_k) {
   }
 
