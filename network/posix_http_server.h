@@ -144,7 +144,7 @@ class HTTPHeaderParser {
     }
   }
 
-  // Can be statically overridden by proviging a different templated class to GenericHTTPConnection.
+  // Can be statically overridden by providing a different templated class to GenericHTTPConnection.
   void OnHeader(const char* key, const char* value) {
     headers_[key] = value;
   }
