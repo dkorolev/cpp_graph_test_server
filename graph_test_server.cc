@@ -38,11 +38,13 @@ int main() {
   Socket s(kPort);
   while (true) {
     std::thread([](HTTPConnection c) {
+                  HTTPHeadersType extra_headers;
+                  extra_headers.push_back(std::make_pair("Access-Control-Allow-Origin", "*"));
                   if (c.Method() == "GET" && (c.URL() == "/meta" || c.URL() == "/meta/")) {
                     // TODO(dkorolev+sompylasar): Discuss multiple URLs for various scales.
                     std::ostringstream os;
                     (cereal::JSONOutputArchive(os))(Meta());
-                    c.SendHTTPResponse(os.str(), HTTPResponseCode::OK);
+                    c.SendHTTPResponse(os.str(), HTTPResponseCode::OK, "application/json", extra_headers);
                   } else if (c.Method() == "GET" && (c.URL() == "/data" || c.URL() == "/data/")) {
                     // TODO(dkorolev): Add URL parsing to support partial data.
                     Data data;
@@ -51,7 +53,7 @@ int main() {
                     }
                     std::ostringstream os;
                     (cereal::JSONOutputArchive(os))(data);
-                    c.SendHTTPResponse(os.str(), HTTPResponseCode::OK);
+                    c.SendHTTPResponse(os.str(), HTTPResponseCode::OK, "application/json", extra_headers);
                   } else {
                     c.SendHTTPResponse("Something's wrong.", HTTPResponseCode::NotFound);
                   }
