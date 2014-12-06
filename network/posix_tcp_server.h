@@ -32,7 +32,7 @@ class GenericConnection {
 
   template <typename T>
   size_t BlockingRead(T* buffer, size_t max_length = kDefaultMaxLengthToReceive) const {
-    const int read_length_or_error = read(fd_, reinterpret_cast<void*>(buffer), max_length * sizeof(T));
+    const ssize_t read_length_or_error = read(fd_, reinterpret_cast<void*>(buffer), max_length * sizeof(T));
     if (read_length_or_error < 0) {
       throw SocketReadException();
     }
@@ -41,10 +41,10 @@ class GenericConnection {
 
   void BlockingWrite(const void* buffer, size_t write_length) {
     assert(buffer);
-    const int result = write(fd_, buffer, write_length);
+    const ssize_t result = write(fd_, buffer, write_length);
     if (result < 0) {
       throw SocketWriteException();
-    } else if (result != static_cast<int>(write_length)) {
+    } else if (static_cast<size_t>(result) != write_length) {
       throw SocketCouldNotWriteEverythingException();
     }
   }
