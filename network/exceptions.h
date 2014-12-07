@@ -17,6 +17,7 @@ struct SocketWriteException : SocketException {};
 struct SocketCouldNotWriteEverythingException : SocketWriteException {};
 
 struct HTTPException : NetworkException {};
+struct HTTPConnectionClosedByPeerBeforeHeadersWereSentInException : HTTPException {};
 struct HTTPNoBodyProvidedException : HTTPException {};
 struct HTTPAttemptedToRespondTwiceException : HTTPException {};
 

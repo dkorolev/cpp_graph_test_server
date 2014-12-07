@@ -1,5 +1,10 @@
 // When the server is running, use the following command in Ubuntu to see the example chart:
-// curl -s http://localhost:8080/data | grep -e "^            " | sed "s/,//" | graph -T X -a -g 3 -C -W 0.004 -L "Example"
+/*
+curl -s http://localhost:8080/data \
+| grep -e "^            " \
+| sed "s/,//" \
+| graph -T X -a -g 3 -C -W 0.004 -L "Example"
+*/
 
 #include <thread>
 
@@ -38,22 +43,24 @@ int main() {
   Socket s(kPort);
   while (true) {
     std::thread([](HTTPConnection c) {
-                  if (c.Method() == "GET" && (c.URL() == "/meta" || c.URL() == "/meta/")) {
-                    // TODO(dkorolev+sompylasar): Discuss multiple URLs for various scales.
-                    std::ostringstream os;
-                    (cereal::JSONOutputArchive(os))(Meta());
-                    c.SendHTTPResponse(os.str(), HTTPResponseCode::OK);
-                  } else if (c.Method() == "GET" && (c.URL() == "/data" || c.URL() == "/data/")) {
-                    // TODO(dkorolev): Add URL parsing to support partial data.
-                    Data data;
-                    for (int i = 0; i < 1000; ++i) {
-                      data.data.push_back(sin(0.01 * i) + sin(0.04 * i) + exp(0.001 * i));
+                  if (c) {
+                    if (c.Method() == "GET" && (c.URL() == "/meta" || c.URL() == "/meta/")) {
+                      // TODO(dkorolev+sompylasar): Discuss multiple URLs for various scales.
+                      std::ostringstream os;
+                      (cereal::JSONOutputArchive(os))(Meta());
+                      c.SendHTTPResponse(os.str(), HTTPResponseCode::OK);
+                    } else if (c.Method() == "GET" && (c.URL() == "/data" || c.URL() == "/data/")) {
+                      // TODO(dkorolev): Add URL parsing to support partial data.
+                      Data data;
+                      for (int i = 0; i < 1000; ++i) {
+                        data.data.push_back(sin(0.01 * i) + sin(0.04 * i) + exp(0.001 * i));
+                      }
+                      std::ostringstream os;
+                      (cereal::JSONOutputArchive(os))(data);
+                      c.SendHTTPResponse(os.str(), HTTPResponseCode::OK);
+                    } else {
+                      c.SendHTTPResponse("Something's wrong.", HTTPResponseCode::NotFound);
                     }
-                    std::ostringstream os;
-                    (cereal::JSONOutputArchive(os))(data);
-                    c.SendHTTPResponse(os.str(), HTTPResponseCode::OK);
-                  } else {
-                    c.SendHTTPResponse("Something's wrong.", HTTPResponseCode::NotFound);
                   }
                 },
                 s.Accept()).detach();

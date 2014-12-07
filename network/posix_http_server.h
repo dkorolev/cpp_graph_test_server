@@ -59,7 +59,7 @@ class HTTPHeaderParser {
  protected:
   // Parses HTTP headers. Extracts method, URL, and body, if provided.
   // Can be statically overridden by providing a different templated class as a parameter for GenericHTTPConnection.
-  void ParseHTTPHeader(const GenericConnection& c) {
+  inline bool ParseHTTPHeader(const GenericConnection& c) {
     // HTTP constants to parse the header and extract method, URL, headers and body.
     const char* const kCRLF = "\r\n";
     const size_t kCRLFLength = strlen(kCRLF);
@@ -88,6 +88,11 @@ class HTTPHeaderParser {
              offset += read_count,
              read_count == chunk) {
         buffer_.resize(buffer_.size() * buffer_growth_k_);
+      }
+      if (!read_count) {
+        // This is worth re-checking, but as for 2014/12/06 the concensus of reading through man and StackOverflow
+        // is that a return value of zero indicates that the socket has been closed from the other end.
+        return false;
       }
       buffer_[offset] = '\0';
       char* p = &buffer_[current_line_offset];
@@ -138,9 +143,10 @@ class HTTPHeaderParser {
       }
       current_line_offset = current_line - &buffer_[0];
     }
+    return true;
   }
 
-  // Can be statically overridden by proviging a different templated class to GenericHTTPConnection.
+  // Can be statically overridden by providing a different templated class to GenericHTTPConnection.
   void OnHeader(const char* key, const char* value) {
     headers_[key] = value;
   }
@@ -160,12 +166,16 @@ class GenericHTTPConnection final : public GenericConnection, public HEADER_PARS
  public:
   typedef HEADER_PARSER T_HEADER_PARSER;
 
-  GenericHTTPConnection(GenericConnection&& c) : GenericConnection(std::move(c)), T_HEADER_PARSER() {
-    T_HEADER_PARSER::ParseHTTPHeader(*this);
+  GenericHTTPConnection(GenericConnection&& c)
+      : GenericConnection(std::move(c)), T_HEADER_PARSER(), good_(T_HEADER_PARSER::ParseHTTPHeader(*this)) {
   }
 
-  GenericHTTPConnection(GenericHTTPConnection&& c) : GenericConnection(std::move(c)), T_HEADER_PARSER() {
-    T_HEADER_PARSER::ParseHTTPHeader(*this);
+  GenericHTTPConnection(GenericHTTPConnection&& c)
+      : GenericConnection(std::move(c)), T_HEADER_PARSER(), good_(T_HEADER_PARSER::ParseHTTPHeader(*this)) {
+  }
+
+  inline operator bool() const {
+    return good_;
   }
 
   static const std::string DefaultContentType() {
@@ -179,6 +189,9 @@ class GenericHTTPConnection final : public GenericConnection, public HEADER_PARS
       HTTPResponseCode code = HTTPResponseCode::OK,
       const std::string& content_type = DefaultContentType(),
       const HTTPHeadersType& extra_headers = HTTPHeadersType()) {
+    if (!good_) {
+      throw HTTPConnectionClosedByPeerBeforeHeadersWereSentInException();
+    }
     if (responded_) {
       throw HTTPAttemptedToRespondTwiceException();
     }
@@ -203,6 +216,9 @@ class GenericHTTPConnection final : public GenericConnection, public HEADER_PARS
       HTTPResponseCode code = HTTPResponseCode::OK,
       const std::string& content_type = DefaultContentType(),
       const HTTPHeadersType& extra_headers = HTTPHeadersType()) {
+    if (!good_) {
+      throw HTTPConnectionClosedByPeerBeforeHeadersWereSentInException();
+    }
     SendHTTPResponse(container.begin(), container.end(), code, content_type, extra_headers);
   }
 
@@ -214,6 +230,7 @@ class GenericHTTPConnection final : public GenericConnection, public HEADER_PARS
   }
 
  private:
+  bool good_;
   bool responded_ = false;
 
   GenericHTTPConnection(const GenericHTTPConnection&) = delete;
