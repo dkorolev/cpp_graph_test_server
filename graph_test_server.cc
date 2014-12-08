@@ -23,16 +23,41 @@ struct Meta {
   }
 };
 
+struct DataXY {
+ public:
+  double x;
+  double y;
+  
+  DataXY(double x, double y) : x(x), y(y) {
+  }
+  
+  template <class A>
+  void serialize(A& ar) {
+    ar(CEREAL_NVP(x), CEREAL_NVP(y));
+  }
+};
+
 struct Data {
  public:
   // TODO(sompylasar+dkorolev): Discuss whether value-only is good, or shall we pass in { x, y } pairs.
   // TODO(sompylasar+dkorolev): Discuss whether any metadata should be returned as well.
-  std::vector<double> data;
+  std::vector<DataXY> data;
   template <class A>
   void serialize(A& ar) {
     ar(CEREAL_NVP(data));
   }
 };
+
+unsigned long long GetNowInMilliseconds() {
+  typedef std::chrono::system_clock clk;
+  unsigned long long now =
+    std::chrono::duration_cast<std::chrono::milliseconds>(clk::now().time_since_epoch()).count();
+  return now;
+}
+
+inline unsigned long long ConvertSecondsToMilliseconds(time_t seconds) {
+  return (seconds * 1000);
+}
 
 int main() {
   Socket s(kPort);
@@ -48,8 +73,10 @@ int main() {
                   } else if (c.Method() == "GET" && (c.URL() == "/data" || c.URL() == "/data/")) {
                     // TODO(dkorolev): Add URL parsing to support partial data.
                     Data data;
-                    for (int i = 0; i < 1000; ++i) {
-                      data.data.push_back(sin(0.01 * i) + sin(0.04 * i) + exp(0.001 * i));
+                    const int data_length = 1000;
+                    for (int i = 0, ic = data_length; i < ic; ++i) {
+                      data.data.push_back(DataXY(GetNowInMilliseconds() - ConvertSecondsToMilliseconds(ic - i),
+                                                 sin(0.01 * i) + sin(0.04 * i) + exp(0.001 * i)));
                     }
                     std::ostringstream os;
                     (cereal::JSONOutputArchive(os))(data);
