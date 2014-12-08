@@ -90,6 +90,10 @@ class HTTPHeaderParser {
         buffer_.resize(buffer_.size() * buffer_growth_k_);
       }
       buffer_[offset] = '\0';
+      // Prevent infinite loop: if `read_count` is zero, an end-of-file is reached.
+      if (read_count == 0) {
+        return;
+      }
       char* p = &buffer_[current_line_offset];
       char* current_line = p;
       while ((p = strstr(current_line, kCRLF))) {
@@ -140,7 +144,7 @@ class HTTPHeaderParser {
     }
   }
 
-  // Can be statically overridden by proviging a different templated class to GenericHTTPConnection.
+  // Can be statically overridden by providing a different templated class to GenericHTTPConnection.
   void OnHeader(const char* key, const char* value) {
     headers_[key] = value;
   }
